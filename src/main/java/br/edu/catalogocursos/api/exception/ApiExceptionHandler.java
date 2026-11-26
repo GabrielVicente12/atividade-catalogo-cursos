@@ -1,6 +1,7 @@
 package br.edu.catalogocursos.api.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -14,17 +15,22 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class ApiExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Erro> validacao(MethodArgumentNotValidException exception, HttpServletRequest request) {
-        String detalhes = exception.getBindingResult().getFieldErrors().stream()
-                .map(erro -> erro.getField() + ": " + erro.getDefaultMessage())
-                .sorted()
-                .collect(Collectors.joining("; "));
+    public ResponseEntity<Erro> validacao(
+            MethodArgumentNotValidException exception, HttpServletRequest request) {
+        String detalhes =
+                exception.getBindingResult().getFieldErrors().stream()
+                        .map(erro -> erro.getField() + ": " + erro.getDefaultMessage())
+                        .sorted()
+                        .collect(Collectors.joining("; "));
         return resposta(HttpStatus.BAD_REQUEST, detalhes, request);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Erro> corpoInvalido(HttpServletRequest request) {
-        return resposta(HttpStatus.BAD_REQUEST, "Corpo JSON inválido ou incompatível com o contrato", request);
+        return resposta(
+                HttpStatus.BAD_REQUEST,
+                "Corpo JSON inválido ou incompatível com o contrato",
+                request);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -33,17 +39,52 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
-    public ResponseEntity<Erro> naoEncontrado(RecursoNaoEncontradoException exception, HttpServletRequest request) {
+    public ResponseEntity<Erro> naoEncontrado(
+            RecursoNaoEncontradoException exception, HttpServletRequest request) {
         return resposta(HttpStatus.NOT_FOUND, exception.getMessage(), request);
     }
 
     @ExceptionHandler(EmailDuplicadoException.class)
-    public ResponseEntity<Erro> conflito(EmailDuplicadoException exception, HttpServletRequest request) {
+    public ResponseEntity<Erro> conflito(
+            EmailDuplicadoException exception, HttpServletRequest request) {
         return resposta(HttpStatus.CONFLICT, exception.getMessage(), request);
     }
 
-    private ResponseEntity<Erro> resposta(HttpStatus status, String mensagem, HttpServletRequest request) {
-        return ResponseEntity.status(status).body(new Erro(status.value(), mensagem, request.getRequestURI()));
+    @ExceptionHandler(br.edu.catalogocursos.application.CredenciaisInvalidasException.class)
+    public ResponseEntity<Erro> credenciais(HttpServletRequest request) {
+        return resposta(HttpStatus.UNAUTHORIZED, "Credenciais inválidas", request);
+    }
+
+    @ExceptionHandler({
+        br.edu.catalogocursos.application.ConflitoException.class,
+        IllegalStateException.class
+    })
+    public ResponseEntity<Erro> regra(RuntimeException e, HttpServletRequest request) {
+        return resposta(HttpStatus.CONFLICT, e.getMessage(), request);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Erro> argumento(IllegalArgumentException e, HttpServletRequest request) {
+        return resposta(HttpStatus.BAD_REQUEST, e.getMessage(), request);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Erro> integridade(HttpServletRequest request) {
+        return resposta(
+                HttpStatus.CONFLICT,
+                "Operação conflita com um registro existente ou relacionado",
+                request);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Erro> acesso(HttpServletRequest request) {
+        return resposta(HttpStatus.FORBIDDEN, "Acesso negado", request);
+    }
+
+    private ResponseEntity<Erro> resposta(
+            HttpStatus status, String mensagem, HttpServletRequest request) {
+        return ResponseEntity.status(status)
+                .body(new Erro(status.value(), mensagem, request.getRequestURI()));
     }
 
     public record Erro(int status, String message, String path) {}

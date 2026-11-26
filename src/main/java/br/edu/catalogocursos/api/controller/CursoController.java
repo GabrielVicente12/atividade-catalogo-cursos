@@ -3,12 +3,15 @@ package br.edu.catalogocursos.api.controller;
 import br.edu.catalogocursos.api.dto.CursoRequest;
 import br.edu.catalogocursos.api.dto.CursoResponse;
 import br.edu.catalogocursos.application.CursoService;
+
 import jakarta.validation.Valid;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Cursos")
 @RestController
 @RequestMapping("/api/cursos")
 public class CursoController {
@@ -19,12 +22,14 @@ public class CursoController {
     }
 
     @PostMapping
+    @io.swagger.v3.oas.annotations.Operation(summary = "Cadastrar curso vinculado a um instrutor")
     public ResponseEntity<CursoResponse> cadastrar(@Valid @RequestBody CursoRequest request) {
         CursoResponse curso = service.cadastrar(request);
         return ResponseEntity.created(URI.create("/api/cursos/" + curso.id())).body(curso);
     }
 
     @GetMapping("/{id}")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Consultar curso com resumo do instrutor")
     public CursoResponse buscarPorId(@PathVariable Long id) {
         return service.buscarPorId(id);
     }
