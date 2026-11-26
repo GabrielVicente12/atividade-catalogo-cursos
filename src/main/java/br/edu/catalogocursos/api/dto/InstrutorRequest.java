@@ -5,5 +5,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record InstrutorRequest(
-        @NotBlank @Size(min = 3, max = 120) String nome,
-        @NotBlank @Email @Size(max = 160) String email) {}
+        @io.swagger.v3.oas.annotations.media.Schema(example = "Marina Costa")
+                @NotBlank
+                @Size(min = 3, max = 120)
+                String nome,
+        @io.swagger.v3.oas.annotations.media.Schema(example = "marina@example.com")
+                @NotBlank
+                @Email
+                @Size(max = 160)
+                String email) {}

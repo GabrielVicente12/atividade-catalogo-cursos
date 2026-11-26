@@ -1,6 +1,7 @@
 package br.edu.catalogocursos.domain;
 
 import jakarta.persistence.*;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,8 +26,7 @@ public class Instrutor {
     protected Instrutor() {}
 
     public Instrutor(String nome, String email) {
-        this.nome = nome;
-        this.email = email;
+        atualizar(nome, email);
     }
 
     public void adicionarCurso(Curso curso) {
@@ -37,8 +37,26 @@ public class Instrutor {
         }
     }
 
-    public Long getId() { return id; }
-    public String getNome() { return nome; }
-    public String getEmail() { return email; }
-    public List<Curso> getCursos() { return Collections.unmodifiableList(cursos); }
+    public void atualizar(String nome, String email) {
+        if (nome == null || nome.isBlank() || nome.length() < 3 || nome.length() > 120)
+            throw new IllegalArgumentException("Nome deve ter entre 3 e 120 caracteres");
+        this.nome = nome;
+        this.email = Objects.requireNonNull(email);
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public List<Curso> getCursos() {
+        return Collections.unmodifiableList(cursos);
+    }
 }
