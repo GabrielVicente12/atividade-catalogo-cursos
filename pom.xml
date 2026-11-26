@@ -67,6 +67,12 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-oauth2-resource-server</artifactId></dependency>
+        <dependency><groupId>org.springdoc</groupId><artifactId>springdoc-openapi-starter-webmvc-ui</artifactId><version>3.1.1</version></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security-test</artifactId><scope>test</scope></dependency>
+
 	</dependencies>
 
 	<build>
@@ -75,7 +81,35 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
-		</plugins>
+
+            <plugin>
+                <groupId>org.jacoco</groupId><artifactId>jacoco-maven-plugin</artifactId><version>0.8.16</version>
+                <executions>
+                    <execution><goals><goal>prepare-agent</goal></goals></execution>
+                    <execution><id>report</id><phase>verify</phase><goals><goal>report</goal></goals></execution>
+                    <execution><id>check</id><phase>verify</phase><goals><goal>check</goal></goals>
+                        <configuration><rules><rule><element>BUNDLE</element><limits>
+                            <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.70</minimum></limit>
+                            <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.40</minimum></limit>
+                        </limits></rule></rules></configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.liquibase</groupId><artifactId>liquibase-maven-plugin</artifactId><version>5.0.3</version>
+                <configuration>
+                    <changeLogFile>db/changelog/db.changelog-master.yaml</changeLogFile><searchPath>src/main/resources</searchPath>
+                    <referenceUrl>${env.DB_REFERENCE_URL}</referenceUrl>
+                    <referenceUsername>${env.DB_REFERENCE_USERNAME}</referenceUsername>
+                    <referencePassword>${env.DB_REFERENCE_PASSWORD}</referencePassword>
+                    <url>${env.DB_DIFF_URL}</url>
+                    <username>${env.DB_DIFF_USERNAME}</username>
+                    <password>${env.DB_DIFF_PASSWORD}</password>
+                    <diffChangeLogFile>${project.build.directory}/liquibase-diff/changelog-gerado.yaml</diffChangeLogFile>
+                </configuration>
+                <dependencies><dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>${postgresql.version}</version></dependency></dependencies>
+            </plugin>
+        </plugins>
 	</build>
 
 </project>
