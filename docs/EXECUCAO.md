@@ -71,4 +71,8 @@ No Bash, use as mesmas variáveis exportadas e `./mvnw clean verify`. A suíte u
 
 O JaCoCo gera `target/site/jacoco/index.html`. O build exige 70% de linhas e 40% de branches no conjunto da aplicação, conforme a Aula 15. Os valores são um ponto de partida acadêmico e os testes também verificam concorrência, rollback, HTTP e autorização. O relatório gerado fica fora do Git.
 
-Importe `postman/Catalogo-Cursos.postman_collection.json` para executar o fluxo no cliente HTTP. Preencha login e senhas em variáveis locais e evite exportá-las. Login e refresh atualizam automaticamente as variáveis de tokens.
+Importe `postman/Catalogo-Cursos.postman_collection.json` e `postman/Catalogo-Cursos.postman_environment.example.json`. Selecione o ambiente importado no canto superior direito do Postman e preencha a senha local do administrador em `senha`. Ajuste `baseUrl` e `login` se necessário.
+
+Use **Run collection** com todas as 44 requisições selecionadas e na ordem original. A primeira requisição prepara os dados exclusivos da execução. Os scripts capturam IDs, tokens e a senha temporária do operador no ambiente selecionado. Os cenários marcados como esperado 400, 401, 403, 404 e 409 devem passar nas verificações, pois demonstram as regras de validação e segurança.
+
+A coleção foi executada com Newman, incluindo os scripts do Postman, em duas execuções completas. Cada execução teve 44 requisições e 58 verificações sem falhas. Para repetir o teste, execute novamente a coleção inteira. Mantenha as credenciais e os tokens do ambiente apenas no seu ambiente local.

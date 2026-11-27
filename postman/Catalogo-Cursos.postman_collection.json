@@ -1,85 +1,61 @@
 {
   "info": {
-    "name": "Catálogo de Cursos — Aulas 00 a 17",
+    "_postman_id": "073d3213-9bb3-4372-a701-6238f7b8eca4",
+    "name": "Catálogo de Cursos — Exemplos executáveis",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Preencha login, senha e senhaOperador apenas nas variáveis locais. Cadastros capturam IDs e login/refresh capturam tokens. Não exporte credenciais nem tokens preenchidos."
+    "description": "Importe também o ambiente LOCAL fornecido e selecione-o. Execute a coleção inteira, em ordem. Cada execução gera emails exclusivos, captura IDs e verifica resultados. Os cenários com 400/401/403/404/409 são testes negativos esperados e devem aparecer como PASS."
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8080"
+      "value": "http://127.0.0.1:8080"
     },
     {
-      "key": "login",
-      "value": ""
-    },
-    {
-      "key": "senha",
-      "value": ""
-    },
-    {
-      "key": "senhaOperador",
-      "value": ""
-    },
-    {
-      "key": "accessToken",
-      "value": ""
-    },
-    {
-      "key": "refreshToken",
-      "value": ""
-    },
-    {
-      "key": "instrutorId",
-      "value": ""
-    },
-    {
-      "key": "cursoId",
-      "value": ""
-    },
-    {
-      "key": "pessoaId",
-      "value": ""
-    },
-    {
-      "key": "alunoId",
-      "value": ""
-    },
-    {
-      "key": "colaboradorId",
-      "value": ""
-    },
-    {
-      "key": "matriculaId",
-      "value": ""
-    },
-    {
-      "key": "contaId",
-      "value": ""
-    },
-    {
-      "key": "emailInstrutor",
-      "value": ""
-    },
-    {
-      "key": "loginOperador",
-      "value": ""
+      "key": "jwtInvalido",
+      "value": "jwt-invalido-para-teste"
     }
   ],
   "item": [
     {
-      "name": "Health público",
+      "name": "01 — Health e preparação da execução",
       "request": {
         "method": "GET",
         "header": [],
-        "url": "{{baseUrl}}/api/health",
         "auth": {
           "type": "noauth"
+        },
+        "url": "{{baseUrl}}/api/health"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.environment.get(\"login\") || !pm.environment.get(\"senha\")) {",
+              "    throw new Error(\"Selecione o ambiente Catálogo de Cursos - LOCAL fornecido com esta coleção.\");",
+              "}",
+              "const id = pm.variables.replaceIn(\"{{$guid}}\").replace(/-/g, \"\");",
+              "pm.environment.set(\"runId\", id);",
+              "pm.environment.set(\"loginOperador\", \"operador_\" + id);",
+              "pm.environment.set(\"senhaOperador\", \"Demo!\" + id);",
+              "[\"accessToken\",\"refreshToken\",\"refreshAnterior\",\"operatorAccessToken\",\"instrutorId\",\"cursoId\",\"pessoaId\",\"alunoId\",\"matriculaId\",\"contaId\"].forEach(k => pm.environment.unset(k));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+            ]
+          }
         }
-      }
+      ]
     },
     {
-      "name": "Login — preencher login e senha em variáveis locais",
+      "name": "02 — Login do administrador",
       "request": {
         "method": "POST",
         "header": [
@@ -88,10 +64,10 @@
             "value": "application/json"
           }
         ],
-        "url": "{{baseUrl}}/api/autenticacao/login",
         "auth": {
           "type": "noauth"
         },
+        "url": "{{baseUrl}}/api/autenticacao/login",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"login\": \"{{login}}\",\n  \"senha\": \"{{senha}}\"\n}",
@@ -108,19 +84,20 @@
           "script": {
             "type": "text/javascript",
             "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "if (pm.response.code === 200) {",
-              "    const tokens = pm.response.json();",
-              "    pm.collectionVariables.set(\"accessToken\", tokens.accessToken);",
-              "    pm.collectionVariables.set(\"refreshToken\", tokens.refreshToken);",
-              "}",
-              "pm.test(\"Resposta 200\", () => pm.response.to.have.status(200));"
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"accessToken\", dados.accessToken);",
+              "  pm.environment.set(\"refreshToken\", dados.refreshToken);",
+              "pm.test(\"JWT e refresh recebidos\", () => { pm.expect(dados.accessToken).to.be.a(\"string\").and.not.empty; pm.expect(dados.refreshToken).to.be.a(\"string\").and.not.empty; });",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "Cadastrar instrutor",
+      "name": "03 — Cadastrar instrutor exclusivo desta execução",
       "request": {
         "method": "POST",
         "header": [
@@ -129,20 +106,20 @@
             "value": "application/json"
           }
         ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
         "url": "{{baseUrl}}/api/instrutores",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"nome\": \"Marina Costa\",\n  \"email\": \"marina.{{$timestamp}}@example.com\"\n}",
+          "raw": "{\n  \"nome\": \"Marina Costa\",\n  \"email\": \"marina.{{runId}}@example.com\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -156,16 +133,19 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Cadastro 201\", () => pm.response.to.have.status(201));",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"instrutorId\", pm.response.json().id);",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"emailInstrutor\", pm.response.json().email);"
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "if (pm.response.code === 201) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"instrutorId\", dados.id);",
+              "pm.test(\"Location do instrutor\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(\"/api/instrutores/\" + dados.id));",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "Cadastrar curso",
+      "name": "04 — Cadastrar curso",
       "request": {
         "method": "POST",
         "header": [
@@ -174,7 +154,6 @@
             "value": "application/json"
           }
         ],
-        "url": "{{baseUrl}}/api/cursos",
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -185,9 +164,10 @@
             }
           ]
         },
+        "url": "{{baseUrl}}/api/cursos",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"titulo\": \"Java com Spring Boot\",\n  \"cargaHoraria\": 40,\n  \"nivel\": \"INICIANTE\",\n  \"instrutorId\": {{instrutorId}}\n}",
+          "raw": "{\n  \"titulo\": \"Java-{{runId}}\",\n  \"cargaHoraria\": 40,\n  \"nivel\": \"INICIANTE\",\n  \"instrutorId\": {{instrutorId}}\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -201,15 +181,19 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Cadastro 201\", () => pm.response.to.have.status(201));",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"cursoId\", pm.response.json().id);"
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "if (pm.response.code === 201) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"cursoId\", dados.id);",
+              "pm.test(\"Instrutor associado\", () => pm.expect(dados.instrutor.id).to.eql(Number(pm.environment.get(\"instrutorId\"))));",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "Atualizar curso e preço",
+      "name": "05 — Atualizar curso e preço",
       "request": {
         "method": "PUT",
         "header": [
@@ -218,188 +202,20 @@
             "value": "application/json"
           }
         ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
         "url": "{{baseUrl}}/api/cursos/{{cursoId}}",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"titulo\": \"Java com Spring Boot\",\n  \"cargaHoraria\": 40,\n  \"nivel\": \"INTERMEDIARIO\",\n  \"preco\": 199.9,\n  \"ativo\": true\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "Adicionar vagas",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{baseUrl}}/api/cursos/{{cursoId}}/vagas/entradas",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"quantidade\": 10\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "Retirar uma vaga disponível",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{baseUrl}}/api/cursos/{{cursoId}}/vagas/saidas",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"quantidade\": 1\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "Consultar curso",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/cursos/{{cursoId}}",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Filtrar cursos",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/cursos?titulo=java&ativo=true&pagina=0&tamanho=20",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Consultar instrutor",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/instrutores/{{instrutorId}}",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Cursos do instrutor",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/instrutores/{{instrutorId}}/cursos",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Cadastrar pessoa",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{baseUrl}}/api/pessoas",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"nome\": \"Aluno Teste\",\n  \"email\": \"aluno.{{$timestamp}}@example.com\"\n}",
+          "raw": "{\n  \"titulo\": \"Java-{{runId}}\",\n  \"cargaHoraria\": 40,\n  \"nivel\": \"INTERMEDIARIO\",\n  \"preco\": 199.9,\n  \"ativo\": true\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -413,15 +229,14 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Cadastro 201\", () => pm.response.to.have.status(201));",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"pessoaId\", pm.response.json().id);"
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
             ]
           }
         }
       ]
     },
     {
-      "name": "Criar papel de aluno",
+      "name": "06 — Disponibilizar duas vagas",
       "request": {
         "method": "POST",
         "header": [
@@ -430,7 +245,6 @@
             "value": "application/json"
           }
         ],
-        "url": "{{baseUrl}}/api/alunos",
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -441,6 +255,165 @@
             }
           ]
         },
+        "url": "{{baseUrl}}/api/cursos/{{cursoId}}/vagas/entradas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantidade\": 2\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "pm.test(\"Duas vagas disponíveis\", () => pm.expect(pm.response.json().vagas).to.eql(2));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 — Consultar curso",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/cursos/{{cursoId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "pm.test(\"DTO sem recursão\", () => pm.expect(pm.response.json().instrutor).to.have.all.keys(\"id\", \"nome\"));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 — Pesquisar o curso criado",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/cursos?titulo={{runId}}&pagina=0&tamanho=20"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "pm.test(\"Vagas = 2\", () => { const pagina=pm.response.json(); pm.expect(pagina.totalElementos).to.eql(1); pm.expect(pagina.conteudo[0].vagas).to.eql(2); });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 — Cadastrar pessoa",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/pessoas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana.{{runId}}@example.com\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "if (pm.response.code === 201) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"pessoaId\", dados.id);",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 — Atribuir papel de aluno",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/alunos",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"pessoaId\": {{pessoaId}}\n}",
@@ -457,33 +430,19 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Cadastro 201\", () => pm.response.to.have.status(201));",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"alunoId\", pm.response.json().id);"
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "if (pm.response.code === 201) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"alunoId\", dados.id);",
+              "",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "Consultar aluno",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/alunos/{{alunoId}}",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Criar papel de colaborador para a mesma pessoa",
+      "name": "11 — Atribuir papel de colaborador à mesma pessoa",
       "request": {
         "method": "POST",
         "header": [
@@ -492,7 +451,6 @@
             "value": "application/json"
           }
         ],
-        "url": "{{baseUrl}}/api/colaboradores",
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -503,6 +461,7 @@
             }
           ]
         },
+        "url": "{{baseUrl}}/api/colaboradores",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"pessoaId\": {{pessoaId}},\n  \"cargo\": \"Secretaria\"\n}",
@@ -519,24 +478,17 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Cadastro 201\", () => pm.response.to.have.status(201));",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"colaboradorId\", pm.response.json().id);"
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });"
             ]
           }
         }
       ]
     },
     {
-      "name": "Confirmar matrícula",
+      "name": "12 — Consultar aluno",
       "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{baseUrl}}/api/matriculas",
+        "method": "GET",
+        "header": [],
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -547,6 +499,41 @@
             }
           ]
         },
+        "url": "{{baseUrl}}/api/alunos/{{alunoId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 — Confirmar matrícula",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/matriculas",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"alunoId\": {{alunoId}},\n  \"cursoId\": {{cursoId}}\n}",
@@ -563,60 +550,22 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Cadastro 201\", () => pm.response.to.have.status(201));",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"matriculaId\", pm.response.json().id);"
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "if (pm.response.code === 201) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"matriculaId\", dados.id);",
+              "pm.test(\"Matrícula confirmada por 199,90\", () => {pm.expect(dados.status).to.eql(\"CONFIRMADA\");pm.expect(Number(dados.valor)).to.eql(199.9);});",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "Consultar matrícula",
+      "name": "14 — Conferir reserva de uma vaga",
       "request": {
         "method": "GET",
         "header": [],
-        "url": "{{baseUrl}}/api/matriculas/{{matriculaId}}",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Consultar minha conta",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/contas-acesso/minha",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Criar conta de operador — requer administrador e senhaOperador preenchida",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{baseUrl}}/api/contas-acesso",
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -627,15 +576,7 @@
             }
           ]
         },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"pessoaId\": {{pessoaId}},\n  \"login\": \"operador.{{$timestamp}}\",\n  \"senha\": \"{{senhaOperador}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
+        "url": "{{baseUrl}}/api/cursos?titulo={{runId}}"
       },
       "event": [
         {
@@ -643,102 +584,25 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Cadastro 201\", () => pm.response.to.have.status(201));",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"contaId\", pm.response.json().id);",
-              "if (pm.response.code === 201) pm.collectionVariables.set(\"loginOperador\", pm.response.json().login);"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Consultar auditoria — administrador",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/auditoria-seguranca?pagina=0&tamanho=20",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Filtrar eventos de login",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/auditoria-seguranca?tipo=LOGIN_SUCESSO&pagina=0&tamanho=20",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Renovar tokens com rotação",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{baseUrl}}/api/autenticacao/refresh",
-        "auth": {
-          "type": "noauth"
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "if (pm.response.code === 200) {",
-              "    const tokens = pm.response.json();",
-              "    pm.collectionVariables.set(\"accessToken\", tokens.accessToken);",
-              "    pm.collectionVariables.set(\"refreshToken\", tokens.refreshToken);",
-              "}",
-              "pm.test(\"Resposta 200\", () => pm.response.to.have.status(200));"
+              "pm.test(\"Vagas = 1\", () => { const pagina=pm.response.json(); pm.expect(pagina.totalElementos).to.eql(1); pm.expect(pagina.conteudo[0].vagas).to.eql(1); });",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "Cancelar matrícula",
+      "name": "15 — Alterar preço atual para 250",
       "request": {
-        "method": "POST",
+        "method": "PUT",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
           }
         ],
-        "url": "{{baseUrl}}/api/matriculas/{{matriculaId}}/cancelamento",
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -749,19 +613,63 @@
             }
           ]
         },
+        "url": "{{baseUrl}}/api/cursos/{{cursoId}}",
         "body": {
           "mode": "raw",
-          "raw": "{}",
+          "raw": "{\n  \"titulo\": \"Java-{{runId}}\",\n  \"cargaHoraria\": 40,\n  \"nivel\": \"INTERMEDIARIO\",\n  \"preco\": 250,\n  \"ativo\": true\n}",
           "options": {
             "raw": {
               "language": "json"
             }
           }
         }
-      }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "Logout da sessão",
+      "name": "16 — Conferir preço histórico da matrícula",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/matriculas/{{matriculaId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "pm.test(\"Valor histórico preservado\", () => pm.expect(Number(pm.response.json().valor)).to.eql(199.9));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 — Esperado 409 — matrícula duplicada",
       "request": {
         "method": "POST",
         "header": [
@@ -770,10 +678,578 @@
             "value": "application/json"
           }
         ],
-        "url": "{{baseUrl}}/api/autenticacao/logout",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/matriculas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"alunoId\": {{alunoId}},\n  \"cursoId\": {{cursoId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 — Cancelar matrícula",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/matriculas/{{matriculaId}}/cancelamento"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "pm.test(\"Matrícula cancelada\", () => pm.expect(pm.response.json().status).to.eql(\"CANCELADA\"));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 — Conferir devolução da vaga",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/cursos?titulo={{runId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "pm.test(\"Vagas = 2\", () => { const pagina=pm.response.json(); pm.expect(pagina.totalElementos).to.eql(1); pm.expect(pagina.conteudo[0].vagas).to.eql(2); });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 — Esperado 409 — segundo cancelamento",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/matriculas/{{matriculaId}}/cancelamento"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 — Esperado 409 — curso possui matrícula",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/cursos/{{cursoId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 — Esperado 409 — instrutor possui curso",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/instrutores/{{instrutorId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 — Esperado 400 — dados inválidos",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/instrutores",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome\": \"A\",\n  \"email\": \"invalido\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "24 — Esperado 404 — curso ausente",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/cursos/999999999"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "25 — Esperado 409 — email duplicado",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/instrutores",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome\": \"Marina Costa\",\n  \"email\": \"marina.{{runId}}@example.com\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "26 — Esperado 401 — sem autenticação",
+      "request": {
+        "method": "GET",
+        "header": [],
         "auth": {
           "type": "noauth"
         },
+        "url": "{{baseUrl}}/api/cursos"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "27 — Esperado 401 — JWT inválido",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{jwtInvalido}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/cursos"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "28 — Criar conta de operador",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/contas-acesso",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pessoaId\": {{pessoaId}},\n  \"login\": \"{{loginOperador}}\",\n  \"senha\": \"{{senhaOperador}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+              "if (pm.response.code === 201) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"contaId\", dados.id);",
+              "pm.test(\"Perfil inicial OPERADOR\", () => pm.expect(dados.perfis).to.eql([\"OPERADOR\"]));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "29 — Login do operador",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": "{{baseUrl}}/api/autenticacao/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"{{loginOperador}}\",\n  \"senha\": \"{{senhaOperador}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"operatorAccessToken\", dados.accessToken);",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "30 — Operador consulta catálogo",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{operatorAccessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/cursos"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "31 — Esperado 403 — operador consulta auditoria",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{operatorAccessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/auditoria-seguranca"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "32 — Esperado 403 — operador tenta excluir",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{operatorAccessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/cursos/{{cursoId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "33 — Administrador consulta auditoria",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/auditoria-seguranca"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "pm.test(\"Eventos presentes\", () => pm.expect(pm.response.json().totalElementos).to.be.above(0));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "34 — Renovar tokens do administrador",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": "{{baseUrl}}/api/autenticacao/refresh",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
@@ -783,83 +1259,51 @@
             }
           }
         }
-      }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set(\"refreshAnterior\", pm.environment.get(\"refreshToken\"));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"accessToken\", dados.accessToken);",
+              "  pm.environment.set(\"refreshToken\", dados.refreshToken);",
+              "pm.test(\"Refresh rotacionado\", () => pm.expect(dados.refreshToken).not.to.eql(pm.environment.get(\"refreshAnterior\")));",
+              "}"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "Negativo — consulta sem token",
+      "name": "35 — Esperado 401 — replay do refresh antigo",
       "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/api/cursos",
-        "header": [],
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "auth": {
           "type": "noauth"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Status 401\", () => pm.response.to.have.status(401));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Negativo — JWT alterado",
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/api/cursos",
-        "header": [],
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "jwt-invalido",
-              "type": "string"
-            }
-          ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Status 401\", () => pm.response.to.have.status(401));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Negativo — instrutor inválido",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/api/instrutores",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
         },
+        "url": "{{baseUrl}}/api/autenticacao/refresh",
         "body": {
           "mode": "raw",
-          "raw": "{\"nome\": \"A\", \"email\": \"invalido\"}",
+          "raw": "{\n  \"refreshToken\": \"{{refreshAnterior}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -873,46 +1317,16 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Status 400\", () => pm.response.to.have.status(400));"
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
             ]
           }
         }
       ]
     },
     {
-      "name": "Negativo — curso ausente",
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/api/cursos/999999999",
-        "header": [],
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Status 404\", () => pm.response.to.have.status(404));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Negativo — email duplicado",
+      "name": "36 — Esperado 401 — família revogada pelo replay",
       "request": {
         "method": "POST",
-        "url": "{{baseUrl}}/api/instrutores",
         "header": [
           {
             "key": "Content-Type",
@@ -920,18 +1334,12 @@
           }
         ],
         "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
+          "type": "noauth"
         },
+        "url": "{{baseUrl}}/api/autenticacao/refresh",
         "body": {
           "mode": "raw",
-          "raw": "{\"nome\": \"Marina Costa\", \"email\": \"{{emailInstrutor}}\"}",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -945,29 +1353,29 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Status 409\", () => pm.response.to.have.status(409));"
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
             ]
           }
         }
       ]
     },
     {
-      "name": "Login de operador para conferir permissões",
+      "name": "37 — Abrir nova sessão de administrador",
       "request": {
         "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
         "url": "{{baseUrl}}/api/autenticacao/login",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "auth": {
-          "type": "noauth"
-        },
         "body": {
           "mode": "raw",
-          "raw": "{\"login\": \"{{loginOperador}}\", \"senha\": \"{{senhaOperador}}\"}",
+          "raw": "{\n  \"login\": \"{{login}}\",\n  \"senha\": \"{{senha}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -981,18 +1389,94 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) pm.collectionVariables.set(\"accessToken\", pm.response.json().accessToken);"
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"accessToken\", dados.accessToken);",
+              "  pm.environment.set(\"refreshToken\", dados.refreshToken);",
+              "",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "Negativo — operador sem acesso à auditoria",
+      "name": "38 — Logout da sessão atual",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": "{{baseUrl}}/api/autenticacao/logout",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "39 — Esperado 401 — renovar após logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": "{{baseUrl}}/api/autenticacao/refresh",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "40 — JWT emitido continua válido até expirar",
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/api/auditoria-seguranca",
         "header": [],
         "auth": {
           "type": "bearer",
@@ -1003,6 +1487,43 @@
               "type": "string"
             }
           ]
+        },
+        "url": "{{baseUrl}}/api/cursos"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "41 — Abrir sessão para logout global",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": "{{baseUrl}}/api/autenticacao/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"{{login}}\",\n  \"senha\": \"{{senha}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         }
       },
       "event": [
@@ -1011,7 +1532,107 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Status 403\", () => pm.response.to.have.status(403));"
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "  const dados = pm.response.json();",
+              "  pm.environment.set(\"accessToken\", dados.accessToken);",
+              "  pm.environment.set(\"refreshToken\", dados.refreshToken);",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "42 — Logout global",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/autenticacao/logout-todos"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "43 — Esperado 401 — renovar após logout global",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": "{{baseUrl}}/api/autenticacao/refresh",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "44 — Consulta final de auditoria",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/auditoria-seguranca"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
             ]
           }
         }

@@ -132,5 +132,6 @@ O JaCoCo gera o relatório em target/site/jacoco/index.html e exige pelo menos 7
 - [Migração e comparação do schema](docs/EVOLUCAO-DO-BANCO.md)
 - [Evidências da validação](docs/EVIDENCIAS.md)
 - [Coleção Postman](postman/Catalogo-Cursos.postman_collection.json)
+- [Modelo de ambiente Postman](postman/Catalogo-Cursos.postman_environment.example.json)
 - [Contrato OpenAPI exportado](docs/openapi.json)
 - [Aulas de referência](https://github.com/jeffersonarpasserini/suporteos2026/tree/main/docs)
